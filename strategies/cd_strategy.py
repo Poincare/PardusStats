@@ -58,18 +58,25 @@ class PrintStrategy(pardus_strategy.Strategy):
 
     else:
       print "file: ", path
-  
-      ##if not already in, add to the chance structure
-      if not (path in self.fs_chance.dir_chances[upper_dir].file_chances):
-        self.fs_chance.dir_chances[upper_dir].addFile(path)
+ 
+    print "upper dir: ", upper_dir, " path: ", path
+ 
+    ##if not already in, add to the chance structure
+    if not (path in self.fs_chance.dir_chances[upper_dir].file_chances):
+      print "dir chance obj: ", self.fs_chance.dir_chances[upper_dir]
+
+      self.fs_chance.dir_chances[upper_dir].addFile(path)
       
+      print "dir chance obj (after mod): ", self.fs_chance.dir_chances[upper_dir]
+     
       ##miss or hit it
-    
       #hit the file requested
       self.fs_chance.dir_chances[upper_dir].hitFile(path)
 
       #miss all of the others
       self.fs_chance.dir_chances[upper_dir].missExcept(path) 
+
+    print "--------------------------"
 
   def exit(self):
     print self.fs_chance

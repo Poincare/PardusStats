@@ -54,15 +54,14 @@ class FSChance:
 
 class DirChance:
   """Hold the file probabilities under each directory"""
-  path = ""
 
   #filename => chance dictionary
   #all of the files under a certain directory
-  file_chances = {} 
 
   def __init__(self, path):
     self.path = path
-
+    self.file_chances = {}
+    
   def __repr__(self):
     return self.path + " : " + str(self.file_chances)
 
@@ -90,7 +89,7 @@ class StrategyRunner:
   
   def get_rs(self):
     if self.record_set == None:
-      rs = RecordSet(self.base_path + "/seer-data/sample")
+      rs = RecordSet(self.base_path + "/seer-data/small-sample")
       rs.load()
   
       return rs
