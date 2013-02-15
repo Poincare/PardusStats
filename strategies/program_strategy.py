@@ -23,6 +23,9 @@ class ProgramStrategy(pardus_strategy.Strategy):
   def add_program(self, program_path):
     self.program_map[program_path] = copy.deepcopy(self.original_fs_chance)
 
+  def get_program_chance(self, program_path):
+    return self.program_map[program_path]
+
   def start(self, fs_chance):
     self.original_fs_chance = fs_chance
     self.fs_chance = fs_chance
@@ -126,11 +129,8 @@ class ProgramStrategy(pardus_strategy.Strategy):
 
 if __name__ == "__main__": 
   sr = pardus_stats.StrategyRunner(os.getcwd() + "/..", "/seer-data/small-sample")
-  ps = ProgramStrategy(100)
-  ps.add_program("/bin/ls")
-  print ps.program_map
-  #for i in range(1, 1000):
-  #  sys.stderr.write(str(i) + "...")
-  #  ps = ProgramStrategy(i * 100)
-  #  sr.start(ps)
+  for i in range(1, 1000):
+    sys.stderr.write(str(i) + "...")
+    ps = ProgramStrategy(i * 100)
+    sr.start(ps)
 
