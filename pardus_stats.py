@@ -88,8 +88,10 @@ class StrategyRunner:
   record_set = None
   
   def get_rs(self):
+    print "Getting rs..."
+
     if self.record_set == None:
-      rs = RecordSet(self.base_path + "/seer-data/small-sample")
+      rs = RecordSet(self.base_path + self.data_path)
       rs.load()
   
       return rs
@@ -98,21 +100,26 @@ class StrategyRunner:
       return self.record_set
 
   def get_fs(self):
+    print "getting fs..."
+
     fs = FSChance(self.get_rs())
     fs.load()
   
     return fs
 
-  def __init__(self, strategy, base_path):
+  def __init__(self, base_path, data_path = "/seer-data/sample"):
     """passed strategy object, subclass of Strategy"""
 
     #strategy object
-    self.strategy = strategy 
+    self.strategy = None 
+    self.data_path = data_path
     self.base_path = base_path
     self.record_set = self.get_rs()
     self.fs_chance = self.get_fs()
 
-  def start(self):
+  def start(self, strategy):
+    self.strategy = strategy
+
     self.strategy.start(self.fs_chance)
     for record in self.record_set.records:
 
@@ -120,3 +127,4 @@ class StrategyRunner:
    
     #lets the strategy know that the records are over 
     self.strategy.exit()
+

@@ -13,10 +13,10 @@ class CDStrategy(pardus_strategy.Strategy):
 
   fs_chance = None 
 
-  def __init__(self):
+  def __init__(self, clear_rate):
     self.cache = Cache()
     self.ticks = 0
-    self.clear_rate = 100
+    self.clear_rate = clear_rate 
 
   def start(self, fs_chance):
     self.fs_chance = fs_chance
@@ -116,8 +116,11 @@ class CDStrategy(pardus_strategy.Strategy):
 
     print self.cache 
 
-ps = CDStrategy()
 sr = pardus_stats.StrategyRunner(os.getcwd() + "/..")
 
 if __name__ == "__main__": 
-  sr.start(ps)
+  for i in range(1, 1000):
+    sys.stderr.write(str(i) + "...")
+    ps = CDStrategy(i * 100)
+    sr.start(ps)
+
