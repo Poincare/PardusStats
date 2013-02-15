@@ -6,77 +6,33 @@ import os
 
 import pardus_stats
 import pardus_strategy
+from cache import *
 
-class Cache:
-  files = []
+class NaiveStrategy(pardus_strategy.Strategy):
 
-  hits = 0
-  misses = 0
-
-  def __init__(self):
-    pass
-
-  def addFile(self, filepath):
-    self.files.append(filepath)
-
-  def hit(self):
-    self.hits += 1 
-
-  def miss(self):
-    self.misses += 1
-
-  def check(self, filepath):
-    if filepath in self.files:
-      self.hit()
-
-    else:
-      self.miss()
-      self.files.append(filepath)
-
-  def clear(self):
-    self.files = []
-
-  def __repr__(self):
-    return ("Hits: " + str(self.hits) + " , misses: " + str(self.misses))
-
-class PrintStrategy(pardus_strategy.Strategy):
-
-  fs_chance = None 
-
-  def __init__(self):
+  def __init__(self, clear_rate):
     self.cache = Cache()
     self.ticks = 0
-    self.clear_rate = 10000
+    self.clear_rate = clear_rate 
 
   def start(self, fs_chance):
-    print "FS chance: ", fs_chance
     self.fs_chance = fs_chance
 
   def isDir(self, p):
     return (p in self.fs_chance.dir_chances)
 
-  def get_chance(self, file_tuple):
-    if file_tuple[1] == 0:
-      return 0
+  def is_relative(self, path):
+    return (not (path[0] == '/'))
 
-    return (file_tuple[0]/float(file_tuple[1]))
-
-  def get_highest_chancer(self, dir_path):
-    dir_chance = self.fs_chance.dir_chances[dir_path]
-    max_chance = -1.0
-    max_key = None
-
-    for filename in dir_chance.file_chances:
-      chance = self.get_chance(dir_chance.file_chances[filename])
-      if chance > max_chance:
-        max_key = filename
-        max_chance = chance           
- 
-    return max_key
- 
   def tick(self, record):
     path = record.syscall.arg
     upper_dir = self.fs_chance.get_dir_from_path(path)
+
+    if path == "" or path == None:
+      return
+
+    if self.is_relative(path):
+      return
 
     if self.ticks % self.clear_rate == 0:
       self.cache.clear()
@@ -97,26 +53,9 @@ class PrintStrategy(pardus_strategy.Strategy):
 
     else:
       pass 
- 
-    ##if not already in, add to the chance structure
-    if not (path in self.fs_chance.dir_chances[upper_dir].file_chances):
-
-      self.fs_chance.dir_chances[upper_dir].addFile(path)
-      
     
     self.cache.check(path)
  
-    ##miss or hit it
-    #hit the file requested
-    self.fs_chance.dir_chances[upper_dir].hitFile(path)
-
-    #miss all of the others
-    self.fs_chance.dir_chances[upper_dir].missExcept(path) 
-   
-    highest_chancer = self.get_highest_chancer(upper_dir)
-
-    print "Highest chances: ", highest_chancer, " chance: ", self.fs_chance.dir_chances[upper_dir].file_chances[highest_chancer] 
-
     self.ticks += 1
 
   def exit(self):
@@ -127,8 +66,11 @@ class PrintStrategy(pardus_strategy.Strategy):
           pass
           #print dc 
 
-    print self.cache 
- 
-ps = PrintStrategy()
-sr = pardus_stats.StrategyRunner(ps, os.getcwd() + "/..")
-sr.start()
+    print str(self.clear_rate) + ": " + str(self.cache)
+
+sr = pardus_stats.StrategyRunner(os.getcwd() + "/..")
+
+for i in range(1, 1000): 
+  ps = NaiveStrategy(i * 100)
+  sr.start(ps)
+
