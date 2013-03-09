@@ -1,0 +1,81 @@
+import sys
+sys.path.insert(0, '../')
+
+import os
+
+import pardus_stats
+import pardus_strategy
+
+from cache import *
+
+class NaiveStrategy(pardus_stats.Strategy):
+  def __init__(self, clear_rate):
+    self.clear_rate = clear_rate
+    self.cache = Cache(clear_rate)
+    self.shutoff_switch = True 
+
+    if self.shutoff_switch:
+      self.cache.clear_bool = False
+
+  def start(self, fs_chance):
+    self.ticks = 0
+    self.cache.clear()
+    self.fs_chance = fs_chance
+
+  def isDir(self, p):
+    return (p in self.fs_chance.dir_chances)
+
+  def is_relative(self, path):
+    return (not (path[0] == '/'))
+
+  def is_nonsense(self, path):
+    if path == "":
+      return True
+  
+    if self.is_relative(path):
+      return True
+
+    if self.isDir(path + "/") or self.isDir(path):
+      return True
+
+  def shutoff(self):
+    if not self.shutoff_switch:
+      return
+
+    else:
+      if self.ticks % self.clear_rate == 0:
+        self.cache.clear()
+
+  def tick(self, record):
+    path = record.syscall.arg
+    upper_dir = self.fs_chance.get_dir_from_path(path)
+    syscall = record.syscall.syscall
+    program_path = record.program_path
+
+    self.shutoff()
+
+    if not (syscall in ["open", "execve", "stat"]):
+      return
+
+    if self.is_nonsense(path):
+      return
+
+    else:
+      pass
+     
+    self.cache.check(path)
+
+    self.ticks += 1
+     
+  
+sr = pardus_stats.StrategyRunner(os.getcwd() + "/..", "/seer-data/sample")
+i = 10
+
+sys.stderr.write(str(i) + "...")
+ps = NaiveStrategy(i)
+sr.start(ps)
+
+print ""
+print ps.cache
+#print ps.cache.hit_table
+

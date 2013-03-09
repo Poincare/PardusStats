@@ -18,4 +18,9 @@ class Strategy:
     these details to predict further events and/or record data.""" 
     pass
 
-      
+
+  def exit(self):
+    """Called when all records have been passed and tick()ing is 
+    over"""
+
+    pass      

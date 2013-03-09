@@ -53,6 +53,12 @@ class RecordSet:
       if len(tr.split_string) == 11:
         tr.parse()
         self.records.append(tr)
+
+      if len(tr.split_string) == 12:
+        del tr.split_string[9]
+        tr.parse()
+        self.records.append(tr)
+
       i += 1
 
   def __repr__(self):

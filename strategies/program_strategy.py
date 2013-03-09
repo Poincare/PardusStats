@@ -1,38 +1,45 @@
-##TODO do this in a better way
 import sys
 sys.path.insert(0, '../')
 
 import os
-import copy
+
 import pardus_stats
 import pardus_strategy
 
 from cache import *
 
-class ProgramStrategy(pardus_strategy.Strategy):
-
-  fs_chance = None 
+class ProgramStrategy(pardus_stats.Strategy):
 
   def __init__(self, clear_rate):
-    self.cache = Cache()
-    self.ticks = 0
-    self.clear_rate = clear_rate 
-    self.original_fs_chance = None
-    self.program_map = {}
+    self.clear_rate = clear_rate
+    self.cache = Cache(clear_rate)
+    self.prefetched = []
+    self.max_keys = {}
+    self.shutoff_switch = False 
+    self.shutoff_rate = 1000 
 
-  def add_program(self, program_path):
-    self.program_map[program_path] = copy.deepcopy(self.original_fs_chance)
-
-  def get_program_chance(self, program_path):
-    return self.program_map[program_path]
+    self.program_chances = {}
 
   def start(self, fs_chance):
-    self.original_fs_chance = fs_chance
+    self.ticks = 0
+    self.cache.clear()
     self.fs_chance = fs_chance
-    #self.init_program_map()
 
-  def isDir(self, p):
+  def isDir(self, p): 
     return (p in self.fs_chance.dir_chances)
+
+  def is_relative(self, path):
+    return (not (path[0] == '/'))
+
+  def is_nonsense(self, path):
+    if path == "":
+      return True
+  
+    if self.is_relative(path):
+      return True
+
+    if self.isDir(path + "/") or self.isDir(path):
+      return True
 
   def get_chance(self, file_tuple):
     if file_tuple[1] == 0:
@@ -40,12 +47,16 @@ class ProgramStrategy(pardus_strategy.Strategy):
 
     return (file_tuple[0]/float(file_tuple[1]))
 
+
   def get_highest_chancer(self, dir_path):
     dir_chance = self.fs_chance.dir_chances[dir_path]
     max_chance = -1.0
     max_key = None
 
     for filename in dir_chance.file_chances:
+      if self.isDir(filename):
+        continue
+
       chance = self.get_chance(dir_chance.file_chances[filename])
       if chance > max_chance:
         max_key = filename
@@ -55,82 +66,112 @@ class ProgramStrategy(pardus_strategy.Strategy):
 
   def prefetch_highest_chancer(self, upper_dir):
     highest_chancer = self.get_highest_chancer(upper_dir)
+    if highest_chancer == None:
+      return
 
-    self.cache.addFile(highest_chancer)
+    dir_chance = self.fs_chance.dir_chances[upper_dir]
+    chance_tuple = dir_chance.file_chances[highest_chancer]
+
+    if chance_tuple[0] > 2:
+      if not (highest_chancer in self.prefetched): 
+        print "Prefetched: ", highest_chancer
+        self.prefetched.append(highest_chancer)
+        self.cache.addFile(highest_chancer)
+
+  def update_chances(self, path, upper_dir):
+    if not (path in self.fs_chance.dir_chances[upper_dir].file_chances):
+      self.fs_chance.dir_chances[upper_dir].addFile(path)
+  
+    else:
+      self.fs_chance.dir_chances[upper_dir].hitFile(path)
+    
+    self.fs_chance.dir_chances[upper_dir].missExcept(path)
+
+  
+  def get_chance_index(self, upper_dir, path):
+    dir_chance = self.fs_chance.dir_chances[upper_dir]
+    file_tuple = dir_chance.file_chances[path]
+    return (file_tuple[0])
 
   def rebuild_cache(self):
-    for upper_dir in self.fs_chance.dir_chances:
-      self.prefetch_highest_chancer(upper_dir)
+    self.max_keys = {} 
 
-  def is_relative(self, path):
-    return (not (path[0] == '/'))
+    #this algorithm is literally O(n^3).
+    #it will fall over and die if the 
+    #clear_rate > 100
+    for upper_dir in self.fs_chance.dir_chances: 
+      mi_len = len(self.max_keys.keys())
+      for path in self.fs_chance.dir_chances[upper_dir].file_chances:
+        index = self.get_chance_index(upper_dir, path)
 
-  def tick(self, record):
-    path = record.syscall.arg
-    upper_dir = self.fs_chance.get_dir_from_path(path)
-    
-    if path == None or path == "":
-      return
+        if mi_len < (self.clear_rate)/2 and index > 2:
+          self.max_keys[path] = index
+          continue
 
-    #don't deal with relative paths
-    if self.is_relative(path):
-      return
+        for key in self.max_keys.keys():
+          #TODO the 10 is an abritrary value
+          #find a way to optimize it
+          if index > self.max_keys[key] and index > 2:
+            del self.max_keys[key]
+            self.max_keys[path] = index  
 
-    if self.ticks % self.clear_rate == 0:
-      self.cache.clear()
-      self.rebuild_cache()
- 
-    #nonsense query like close(4) that we can
-    #just ignore
-    if path == "" or upper_dir == None:
-      return
+    for key in self.max_keys:
+      self.cache.addFile(key)
 
-    #ignore if its a relative path
-    if upper_dir in ["../", "..", ".", "./"]:
-      return      
-
-    ##it is a directory
-    if self.isDir(path + "/"):
-      
+  def shutoff(self):
+    if not self.shutoff_switch:
       return
 
     else:
-      pass 
- 
-    ##if not already in, add to the chance structure
-    if not (path in self.fs_chance.dir_chances[upper_dir].file_chances):
+      if self.ticks % self.clear_rate == 0:
+        self.cache.clear()
 
-      self.fs_chance.dir_chances[upper_dir].addFile(path)
-      
-    
-    self.cache.check(path)
- 
-    ##miss or hit it
-    #hit the file requested
-    self.fs_chance.dir_chances[upper_dir].hitFile(path)
+  def tick(self, record):
+    if self.ticks % 1000 == 0:
+      print self.ticks
 
-    #miss all of the others
-    self.fs_chance.dir_chances[upper_dir].missExcept(path) 
-   
+    self.shutoff()
+
     self.ticks += 1
 
-    self.prefetch_highest_chancer(upper_dir); 
+    path = record.syscall.arg
+    upper_dir = self.fs_chance.get_dir_from_path(path)
+    syscall = record.syscall.syscall
+    program_path = record.program_path
 
-  def exit(self):
-    for dc_path in self.fs_chance.dir_chances:
-      dc = self.fs_chance.dir_chances[dc_path]
-      for fname in dc.file_chances:
-        if dc.file_chances[fname][0] > 5:
-          pass
-          #print dc 
+    if not (syscall in ["open", "execve", "stat"]):
+      return
 
-    print self.cache 
+    if self.is_nonsense(path):
+      return
 
+    #basic, naive algorithm
+    self.cache.check(path)
 
-if __name__ == "__main__": 
+    #we build on that with the predictive algorithm
+    self.update_chances(path, upper_dir)
+ 
+    this_index = self.get_chance_index(upper_dir, path)   
+
+    #don't rebuild everytime, because that's insane
+    if self.max_keys == {}:
+      self.rebuild_cache()
+
+    else:
+      for key in self.max_keys.keys():
+        if this_index > self.max_keys[key]:
+          self.rebuild_cache() 
+          break
+
+if __name__ == "__main__":
   sr = pardus_stats.StrategyRunner(os.getcwd() + "/..", "/seer-data/small-sample")
-  for i in range(1, 1000):
-    sys.stderr.write(str(i) + "...")
-    ps = ProgramStrategy(i * 100)
+  i = 10
+
+  for i in [1, 10, 100]:
+    sys.stderr.write(str(i*10) + "...")
+    ps = CDStrategy(i*10)
     sr.start(ps)
+
+    print i*10, ", ", ps.cache.hits, ", ", ps.cache.misses
+    #print ps.cache.hit_table
 
