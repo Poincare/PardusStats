@@ -14,8 +14,11 @@ class CDStrategy(pardus_stats.Strategy):
     self.cache = Cache(clear_rate)
     self.prefetched = []
     self.max_keys = {}
-    self.shutoff_switch = False 
+    self.shutoff_switch = True 
     self.shutoff_rate = 1000 
+
+  def __str__(self):
+    return "CDStrategy object"
 
   def start(self, fs_chance):
     self.ticks = 0
@@ -160,11 +163,16 @@ class CDStrategy(pardus_stats.Strategy):
           self.rebuild_cache() 
           break
 
+    #return # of cache hits, misses - used in strategy selector code
+    print "Hits: ", self.cache.hits
+
+    return (self.cache.hits, self.cache.misses)
+
 if __name__ == "__main__":
   sr = pardus_stats.StrategyRunner(os.getcwd() + "/..", "/seer-data/small-sample")
   i = 10
 
-  for i in [1, 10, 100]:
+  for i in [100]:
     sys.stderr.write(str(i*10) + "...")
     ps = CDStrategy(i*10)
     sr.start(ps)

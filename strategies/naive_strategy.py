@@ -6,14 +6,17 @@ import os
 import pardus_stats
 import pardus_strategy
 
-from naive_cache import *
+from cache import *
 
 class NaiveStrategy(pardus_stats.Strategy):
   def __init__(self, clear_rate):
     self.clear_rate = clear_rate
     self.cache = Cache(clear_rate)
     self.shutoff_rate = 1000
-    self.shutoff_switch = True 
+    self.shutoff_switch = True
+
+  def __str__(self):
+    return "Naive strategy"
 
   def start(self, fs_chance):
     self.ticks = 0
@@ -65,15 +68,15 @@ class NaiveStrategy(pardus_stats.Strategy):
 
     self.ticks += 1
 
+    #return # of cache hits, misses - used in strategy selector code
+    return (self.cache.hits, self.cache.misses)
 
 if __name__ == "__main__":
   sr = pardus_stats.StrategyRunner(os.getcwd() + "/..", "/seer-data/small-sample")
-  for i in range(1, 100):
+  for i in range(100, 101):
     sys.stderr.write(str(i*10) + "...")
-    print ""
     ps = NaiveStrategy(i * 10)
     sr.start(ps)
 
-    print i*10, ",", ps.cache.hits, ",", ps.cache.misses
-    #print ps.cache.hit_table
+    print ps.cache.hits, ps.cache.misses
 
