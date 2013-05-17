@@ -4,6 +4,16 @@ class Strategy:
   filesystem traces and you can collect data on how your strategy 
   did within this class."""
 
+  def isDir(self, p):
+    return (p in self.fs_chance.dir_chances)
+
+  def is_relative(self, path):
+    return (not (path[0] == '/'))
+
+  def is_nonsense(self, path):
+    if path == "" or self.is_relative(path) or self.isDir(path + "/") or self.isDir(path):
+      return True
+ 
   def __init__(self):
     pass
 
@@ -22,5 +32,4 @@ class Strategy:
   def exit(self):
     """Called when all records have been passed and tick()ing is 
     over"""
-
     pass      

@@ -1,11 +1,8 @@
 import sys
 sys.path.insert(0, '../')
-
 import os
-
 import pardus_stats
 import pardus_strategy
-
 from cache import *
 
 #import strategies themselves

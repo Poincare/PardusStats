@@ -122,7 +122,6 @@ class StrategyRunner:
 
     self.strategy.start(self.fs_chance)
     for record in self.record_set.records:
-
       self.strategy.tick(record)
    
     #lets the strategy know that the records are over 
